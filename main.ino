@@ -10,7 +10,7 @@
 #define BUZZER_PIN      A4   // The output pin for the piezo buzzer
 #define FREQUENCY_PIN   12 // The frequency pin
 #define MAG_PIN         11
-#define MOVE_PIN        35
+#define TILT_PIN        35
 #define NUM_OF_SAMPLES  10   // Higher number whens more delay but more consistent readings
 #define CAP_THRESHOLD   150  // Capactive reading that triggers a note (adjust to fit your needs)
 #define NUM_OF_KEYS     4    // Number of keys that are on the keyboard
@@ -25,6 +25,9 @@ float frequency;
 float NORMAL_FREQ = 8700;
 const int stepsPerRevolution = 2048;
 int notes[]={NOTE_C4,NOTE_D4,NOTE_E4,NOTE_F4}; // C-Major scale
+bool tiltState = false;
+
+unsigned long debounceDelay = 50; 
 
 //----OBJECT DEFINES----//
 
@@ -40,11 +43,11 @@ void setup() {
     keys[i].set_CS_AutocaL_Millis(0xFFFFFFFF);
   }
   pinMode(FREQUENCY_PIN, INPUT);
-  pinMode(MOVE_PIN, INPUT);
+  pinMode(TILT_PIN, INPUT);
   pinMode(BUZZER_PIN, OUTPUT); 
   pinMode(STROBE_PIN, OUTPUT);
   pinMode(MAG_PIN, OUTPUT);
-  digitalWrite(MOVE_PIN, HIGH);
+  digitalWrite(TILT_PIN, HIGH);
   digitalWrite(MAG_PIN, HIGH);
   digitalWrite(STROBE_PIN, LOW);
   myStepper.setSpeed(5);
@@ -67,7 +70,6 @@ void loop() {
     }
   }
   
-
   if (sequenceIndex == 5) {
     sequenceIndex = 0;
     bool equal = true;
@@ -76,14 +78,14 @@ void loop() {
         equal = false;
       }  
     } 
+
     if (equal) {
       digitalWrite(STROBE_PIN, HIGH);
-      delay(5000);
+      delay(2000);
       digitalWrite(STROBE_PIN, LOW);
       checkFrequency();
       digitalWrite(MAG_PIN, LOW);
       checkMotion();
-      Serial.println("Done");
       doSteps();
     }
   }
@@ -113,7 +115,14 @@ void checkFrequency(){
 void checkMotion(){
   bool readMotion = true;
   while (readMotion){
-    if (digitalRead(MOVE_PIN) == HIGH){
+
+    if (digitalRead(TILT_PIN)){
+      delay(debounceDelay);
+      if (digitalRead(TILT_PIN)){
+        tiltState = true;
+      }
+    }
+    if (tiltState){
       tone(BUZZER_PIN, 500);
       delay(500);
       tone(BUZZER_PIN, 1500);
@@ -123,13 +132,14 @@ void checkMotion(){
       noTone(BUZZER_PIN);
       readMotion = false;
     }
+
   }
 }
 
 //----TURN MOTOR----//
 
 void doSteps(){
-  Serial.println("Turning motor");
   myStepper.step(-stepsPerRevolution / 4);
-  Serial.println("Done motor");
+  delay(1000);
+  myStepper.step(stepsPerRevolution / 4);
 }
